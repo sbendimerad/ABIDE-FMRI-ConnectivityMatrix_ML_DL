@@ -1,0 +1,10 @@
+tensorflow[and-cuda]
+pandas
+numpy
+docopt
+scikit-learn
+scipy
+tabulate
+xgboost
+h5py
+pandas
