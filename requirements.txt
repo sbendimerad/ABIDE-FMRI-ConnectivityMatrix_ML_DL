@@ -8,3 +8,4 @@ tabulate
 xgboost
 h5py
 pandas
+tabulate

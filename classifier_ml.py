@@ -157,9 +157,6 @@ if __name__ == "__main__":
         experiment_results.append([experiment] + metrics)
         best_params_results[experiment] = best_params  # Store best params for each experiment
 
-        # If logistic, store scaler to use for the test set
-        if clf_type == "logistic" and scaler:
-            print(f"Scaler for {experiment}: {scaler.mean_}, {scaler.scale_}")
 
     # Display all results in a table
     print(tabulate.tabulate(experiment_results, headers=["exp", "acc", "prec", "recall", "fscore", "sens", "spec"]))
