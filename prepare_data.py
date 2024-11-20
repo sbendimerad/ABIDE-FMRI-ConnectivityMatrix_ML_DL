@@ -88,7 +88,6 @@ def prepare_folds(hdf5, folds, pheno, derivatives, experiment):
 
         exp = exps.require_group(exp_name)
         exp.attrs["derivative"] = derivative
-
         skf = StratifiedKFold(n_splits=folds, shuffle=False)
         for i, (train_index, test_index) in enumerate(skf.split(ids, pheno["STRAT"])):
             
@@ -126,6 +125,7 @@ def load_patients_to_file(hdf5, pheno, derivatives):
             patient_storage.attrs["y"] = record["DX_GROUP"]
             patient_storage.attrs["site"] = record["SITE_ID"]
             patient_storage.attrs["sex"] = record["SEX"]
+            patient_storage.attrs["age"] = record["AGE"]
             patient_storage.attrs["fiq"] = record["FIQ"]
             patient_storage.attrs["viq"] = record["VIQ"]
             patient_storage.attrs["piq"] = record["PIQ"]
@@ -148,6 +148,7 @@ if __name__ == "__main__":
     arguments = docopt(__doc__)
 
     folds = int(arguments["--folds"])
+
     pheno_path = "./data/phenotypes/Phenotypic_V1_0b_preprocessed1.csv"
     pheno = load_phenotypes(pheno_path)
 

@@ -150,6 +150,7 @@ if __name__ == "__main__":
 
     valid_derivatives = ["cc200", "aal", "ez", "ho", "tt", "dosenbach160"]
     derivatives = [d for d in arguments["<derivative>"] if d in valid_derivatives]
+    
     experiments = []
 
     for derivative in derivatives:
@@ -163,12 +164,13 @@ if __name__ == "__main__":
 
         if arguments["--leave-site-out"]:
             for site in pheno["SITE_ID"].unique():
-                site_config = {"site": site}
-                experiments += [
-                    format_config(
-                        "{derivative}_leavesiteout-{site}", config, site_config
-                    )
-                ]
+                if site=='NYU':
+                    site_config = {"site": site}
+                    experiments += [
+                        format_config(
+                            "{derivative}_leavesiteout-{site}", config, site_config
+                        )
+                    ]
 
     experiments = sorted(experiments)
     experiment_results = []
