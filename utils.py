@@ -1,74 +1,104 @@
 #!/usr/bin/env python
-import os
-import re
-import sys
-import h5py
-import time
-import string
 import contextlib
 import multiprocessing
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-from model import ae
-from tensorflow.python.framework import ops
-import tensorflow.compat.v1 as tf
+import os
+import re
+import string
+import sys
+import time
 
-identifier = '(([a-zA-Z]_)?([a-zA-Z0-9_]*))'
-replacement_field = '{' + identifier + '}'
+import h5py
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+import tensorflow.compat.v1 as tf
+from tensorflow.python.framework import ops
+
+from model import ae
+
+identifier = "(([a-zA-Z]_)?([a-zA-Z0-9_]*))"
+replacement_field = "{" + identifier + "}"
 
 
 def reset():
-    #tf.reset_default_graph()
+    # tf.reset_default_graph()
     ops.reset_default_graph()
-    #tf.compat.v1.reset_default_graph()
-    #random.seed(19)
-    #np.random.seed(19)
+    # tf.compat.v1.reset_default_graph()
+    # random.seed(19)
+    # np.random.seed(19)
     tf.set_random_seed(19)
-    #tf.random.set_seed(19)
+    # tf.random.set_seed(19)
 
 
 def load_phenotypes(pheno_path):
     pheno = pd.read_csv(pheno_path)
-    
-    pheno = pheno[pheno['FILE_ID'] != 'no_filename']
-    #pheno = pheno[pheno['FILE_ID'].str.contains("NYU")]
-    pheno['DX_GROUP'] = pheno['DX_GROUP'].apply(lambda v: int(v)-1)
-    pheno['SITE_ID'] = pheno['SITE_ID'].apply(lambda v: re.sub('_[0-9]', '', v))
-    #pheno['SEX'] = pheno['SEX'].apply(lambda v: {1: "M", 2: "F"}[v])
-    pheno['SEX'] = pheno['SEX']
-    pheno['MEAN_FD'] = pheno['func_mean_fd']
-    pheno['SUB_IN_SMP'] = pheno['SUB_IN_SMP'].apply(lambda v: v == 1)
-    pheno["STRAT"] = pheno[["SITE_ID", "DX_GROUP"]].apply(lambda x: "_".join([str(s) for s in x]), axis=1)
-    pheno["AGE"] = pheno['AGE_AT_SCAN']
 
-    pheno.index = pheno['FILE_ID']
+    pheno = pheno[pheno["FILE_ID"] != "no_filename"]
+    # pheno = pheno[pheno['FILE_ID'].str.contains("NYU")]
+    pheno["DX_GROUP"] = pheno["DX_GROUP"].apply(lambda v: int(v) - 1)
+    pheno["SITE_ID"] = pheno["SITE_ID"].apply(lambda v: re.sub("_[0-9]", "", v))
+    # pheno['SEX'] = pheno['SEX'].apply(lambda v: {1: "M", 2: "F"}[v])
+    pheno["SEX"] = pheno["SEX"]
+    pheno["MEAN_FD"] = pheno["func_mean_fd"]
+    pheno["SUB_IN_SMP"] = pheno["SUB_IN_SMP"].apply(lambda v: v == 1)
+    pheno["STRAT"] = pheno[["SITE_ID", "DX_GROUP"]].apply(
+        lambda x: "_".join([str(s) for s in x]), axis=1
+    )
+    pheno["AGE"] = pheno["AGE_AT_SCAN"]
 
-    return pheno[['FILE_ID', 'DX_GROUP', 'SEX', 'SITE_ID', 'MEAN_FD', 'SUB_IN_SMP', 'STRAT','AGE']]
+    pheno.index = pheno["FILE_ID"]
+
+    return pheno[
+        [
+            "FILE_ID",
+            "DX_GROUP",
+            "SEX",
+            "SITE_ID",
+            "MEAN_FD",
+            "SUB_IN_SMP",
+            "STRAT",
+            "AGE",
+        ]
+    ]
 
 
 def load_phenotypes_2(pheno_path):
 
     pheno = pd.read_csv(pheno_path)
-    
-    pheno = pheno[pheno['FILE_ID'] != 'no_filename']
-    #pheno = pheno[pheno['FILE_ID'].str.contains("NYU")]
-    pheno['DX_GROUP'] = pheno['DX_GROUP'].apply(lambda v: int(v)-1)
-    pheno['SITE_ID'] = pheno['SITE_ID'].apply(lambda v: re.sub('_[0-9]', '', v))
-    pheno['SEX'] = pheno['SEX'].apply(lambda v: {1: "M", 2: "F"}[v])
-    pheno['SEX'] = pheno['SEX']
-    pheno['MEAN_FD'] = pheno['func_mean_fd']
-    pheno['SUB_IN_SMP'] = pheno['SUB_IN_SMP'].apply(lambda v: v == 1)
-    pheno["STRAT"] = pheno[["SITE_ID", "DX_GROUP"]].apply(lambda x: "_".join([str(s) for s in x]), axis=1)
-    pheno["AGE"] = pheno['AGE_AT_SCAN']
 
-    #pheno["FIQ"] = pheno['FIQ'].apply(lambda v: {-9999: '100'}[v])
-    pheno["FIQ"] = pheno['FIQ'].fillna(pheno['FIQ'].mean())
+    pheno = pheno[pheno["FILE_ID"] != "no_filename"]
+    # pheno = pheno[pheno['FILE_ID'].str.contains("NYU")]
+    pheno["DX_GROUP"] = pheno["DX_GROUP"].apply(lambda v: int(v) - 1)
+    pheno["SITE_ID"] = pheno["SITE_ID"].apply(lambda v: re.sub("_[0-9]", "", v))
+    pheno["SEX"] = pheno["SEX"].apply(lambda v: {1: "M", 2: "F"}[v])
+    pheno["SEX"] = pheno["SEX"]
+    pheno["MEAN_FD"] = pheno["func_mean_fd"]
+    pheno["SUB_IN_SMP"] = pheno["SUB_IN_SMP"].apply(lambda v: v == 1)
+    pheno["STRAT"] = pheno[["SITE_ID", "DX_GROUP"]].apply(
+        lambda x: "_".join([str(s) for s in x]), axis=1
+    )
+    pheno["AGE"] = pheno["AGE_AT_SCAN"]
 
-    pheno['HANDEDNESS_SCORES'] = pheno['HANDEDNESS_SCORES'].fillna(method='bfill')
-    pheno.index = pheno['FILE_ID']
+    # pheno["FIQ"] = pheno['FIQ'].apply(lambda v: {-9999: '100'}[v])
+    pheno["FIQ"] = pheno["FIQ"].fillna(pheno["FIQ"].mean())
 
-    return pheno[['FILE_ID', 'DX_GROUP', 'SEX', 'SITE_ID', 'MEAN_FD', 'SUB_IN_SMP', 'STRAT','AGE','HANDEDNESS_SCORES','FIQ']]
+    pheno["HANDEDNESS_SCORES"] = pheno["HANDEDNESS_SCORES"].fillna(method="bfill")
+    pheno.index = pheno["FILE_ID"]
+
+    return pheno[
+        [
+            "FILE_ID",
+            "DX_GROUP",
+            "SEX",
+            "SITE_ID",
+            "MEAN_FD",
+            "SUB_IN_SMP",
+            "STRAT",
+            "AGE",
+            "HANDEDNESS_SCORES",
+            "FIQ",
+        ]
+    ]
 
 
 def hdf5_handler(filename, mode="r"):
@@ -80,8 +110,9 @@ def hdf5_handler(filename, mode="r"):
     propfaid.set_cache(*settings)
     with contextlib.closing(h5py.h5f.open(filename, fapl=propfaid)) as fid:
         f = h5py.File(fid, mode)
-        # f.attrs.create(dtype=h5py.special_dtype(vlen=str)) 
+        # f.attrs.create(dtype=h5py.special_dtype(vlen=str))
         return f
+
 
 def load_fold(patients, experiment, fold):
 
@@ -89,23 +120,23 @@ def load_fold(patients, experiment, fold):
 
     pheno_path = "./data/phenotypes/Phenotypic_V1_0b_preprocessed1.csv"
     pheno = load_phenotypes(pheno_path)
-    #print(pheno['FILE_ID'])
+    # print(pheno['FILE_ID'])
 
     X_train = []
     y_train = []
-   
+
     for pid in experiment[fold]["train"]:
-        
-        p=pheno[pheno['FILE_ID']==pid.decode(encoding = 'UTF-8')]
-        x=np.array(patients[pid][derivative])
-        x=np.append(x,int(p['SEX'].values))
-        x=np.append(x,float(p['AGE'].values))
+
+        p = pheno[pheno["FILE_ID"] == pid.decode(encoding="UTF-8")]
+        x = np.array(patients[pid][derivative])
+        x = np.append(x, int(p["SEX"].values))
+        x = np.append(x, float(p["AGE"].values))
         # print(p['FILE_ID'])
         # print(p['SEX'].values)
         # print(p['AGE'].values)
         # print(x.shape)
         # X_train.append(np.array(patients[pid][derivative]))
-        #print(len(patients[pid][derivative]))
+        # print(len(patients[pid][derivative]))
         X_train.append(x)
         y_train.append(patients[pid].attrs["y"])
 
@@ -113,10 +144,10 @@ def load_fold(patients, experiment, fold):
     y_valid = []
     for pid in experiment[fold]["valid"]:
 
-        p=pheno[pheno['FILE_ID']==pid.decode(encoding = 'UTF-8')]
-        x=np.array(patients[pid][derivative])
-        x=np.append(x,int(p['SEX'].values))
-        x=np.append(x,float(p['AGE'].values))
+        p = pheno[pheno["FILE_ID"] == pid.decode(encoding="UTF-8")]
+        x = np.array(patients[pid][derivative])
+        x = np.append(x, int(p["SEX"].values))
+        x = np.append(x, float(p["AGE"].values))
 
         X_valid.append(x)
         y_valid.append(patients[pid].attrs["y"])
@@ -125,19 +156,22 @@ def load_fold(patients, experiment, fold):
     y_test = []
     for pid in experiment[fold]["test"]:
 
-        p=pheno[pheno['FILE_ID']==pid.decode(encoding = 'UTF-8')]
-        x=np.array(patients[pid][derivative])
-        x=np.append(x,int(p['SEX'].values))
-        x=np.append(x,float(p['AGE'].values))
+        p = pheno[pheno["FILE_ID"] == pid.decode(encoding="UTF-8")]
+        x = np.array(patients[pid][derivative])
+        x = np.append(x, int(p["SEX"].values))
+        x = np.append(x, float(p["AGE"].values))
 
         X_test.append(x)
         y_test.append(patients[pid].attrs["y"])
 
-
-
-    return np.array(X_train), y_train, \
-           np.array(X_valid), y_valid, \
-           np.array(X_test), y_test
+    return (
+        np.array(X_train),
+        y_train,
+        np.array(X_valid),
+        y_valid,
+        np.array(X_test),
+        y_test,
+    )
 
 
 class SafeFormat(dict):
@@ -175,7 +209,7 @@ def run_progress(callable_func, items, message=None, jobs=1):
 
     results = []
 
-    print ('Starting pool of %d jobs' % jobs)
+    print("Starting pool of %d jobs" % jobs)
 
     current = 0
     total = len(items)
@@ -186,7 +220,7 @@ def run_progress(callable_func, items, message=None, jobs=1):
             results.append(callable_func(item))
             current = len(results)
             if message is not None:
-                args = {'current': current, 'total': total}
+                args = {"current": current, "total": total}
                 sys.stdout.write("\r" + message.format(**args))
                 sys.stdout.flush()
 
@@ -199,7 +233,7 @@ def run_progress(callable_func, items, message=None, jobs=1):
         while current < total:
             current = len(results)
             if message is not None:
-                args = {'current': current, 'total': total}
+                args = {"current": current, "total": total}
                 sys.stdout.write("\r" + message.format(**args))
                 sys.stdout.flush()
             time.sleep(0.5)
@@ -226,9 +260,9 @@ def load_ae_encoder(input_size, code_size, model_path):
     try:
         with tf.Session() as sess:
             sess.run(init)
-            saver = tf.train.Saver(model["params"], write_version= tf.train.SaverDef.V2)
+            saver = tf.train.Saver(model["params"], write_version=tf.train.SaverDef.V2)
             if os.path.isfile(model_path):
-                print ("Restoring", model_path)
+                print("Restoring", model_path)
                 saver.restore(sess, model_path)
             params = sess.run(model["params"])
             return {"W_enc": params["W_enc"], "b_enc": params["b_enc"]}
@@ -238,6 +272,5 @@ def load_ae_encoder(input_size, code_size, model_path):
 
 def sparsity_penalty(x, p, coeff):
     p_hat = tf.reduce_mean(tf.abs(x), 0)
-    kl = p * tf.log(p / p_hat) + \
-        (1 - p) * tf.log((1 - p) / (1 - p_hat))
+    kl = p * tf.log(p / p_hat) + (1 - p) * tf.log((1 - p) / (1 - p_hat))
     return coeff * tf.reduce_sum(kl)
