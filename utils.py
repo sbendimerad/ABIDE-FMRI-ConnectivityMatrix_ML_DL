@@ -65,7 +65,7 @@ def load_fold(patients, experiment, fold):
 
     X_train = []
     y_train = []
-   
+
     for pid in experiment[fold]["train"]:
         
         p=pheno[pheno['FILE_ID']==pid.decode(encoding = 'UTF-8')]
@@ -111,7 +111,6 @@ def load_fold(patients, experiment, fold):
 
         X_test.append(x)
         y_test.append(patients[pid].attrs["y"])
-
 
 
     return np.array(X_train), y_train, \

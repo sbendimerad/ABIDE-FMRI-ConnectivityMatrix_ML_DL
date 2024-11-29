@@ -20,6 +20,7 @@ Options:
 """
 import numpy as np
 import pandas as pd
+
 import os
 import random
 import pandas as pd
@@ -34,6 +35,22 @@ from utils import (load_phenotypes, format_config, run_progress, hdf5_handler)
 
 def compute_connectivity(functional):
     with np.errstate(invalid="ignore"):
+      # granger_matrix = np.zeros((200, 200))
+      # data=functional
+      # for i in range(200):
+      #   for j in range(200):
+      #     if i != j:
+      #         # 将第i和第j列的时间序列作为输入数据
+      #         x = pd.DataFrame({'x': data[:,i], 'y': data[:,j]})
+      #         # 计算格兰杰因果检验，maxlag=1表示只考虑滞后一步
+      #         granger_test = sm.tsa.stattools.grangercausalitytests(x, maxlag=3, verbose=False)
+      #         # 提取格兰杰因果检验结果的p值
+      #         p_value = granger_test[1][0]['ssr_ftest'][1]
+      #         # 将p值存储到格兰杰因果检验矩阵中
+      #         granger_matrix[i, j] = p_value
+      #   print(granger_matrix.shape)
+       
+      #   granger_matrix=np.nan_to_num(granger_matrix)
         corr = np.nan_to_num(np.corrcoef(functional))
         mask = np.invert(np.tri(corr.shape[0], k=-1, dtype=bool))
         m = ma.masked_where(mask == 1, mask)
@@ -59,8 +76,20 @@ def load_patient(subj, tmpl):
 
     functional = np.nan_to_num(df[ROIs].to_numpy().T).tolist()
     functional = preprocessing.scale(functional, axis=1)
+    #print(len(functional),len(functional[0]))
     functional = compute_connectivity(functional)
+    #print(np.count_nonzero(np.array(functional)))
     functional = functional.astype(np.float32)
+
+    # T=90
+    # sampleList=random.sample(range(0,len(functional)-1-T),10)
+    # print(sampleList)
+    # samples=[]
+    # for i in sampleList:
+    #   sample=functional[i:i+T]
+    #   samples.append(sample)
+    # print(np.array(samples).shape)
+
     return subj,functional
 
 
@@ -74,32 +103,38 @@ def prepare_folds(hdf5, folds, pheno, derivatives, experiment):
 
     exps = hdf5.require_group("experiments")
     ids = pheno["FILE_ID"]
-
     for derivative in derivatives:
-        exp_name = format_config(
+        exp = exps.require_group(format_config(
             experiment,
             {
                 "derivative": derivative,
             }
-        )
-        if exp_name in exps:
-            print(f"Experiment {exp_name} already exists. Deleting it.")
-            del exps[exp_name]  # Delete the existing experiment group
-
-        exp = exps.require_group(exp_name)
+        ))
         exp.attrs["derivative"] = derivative
+
         skf = StratifiedKFold(n_splits=folds, shuffle=False)
         for i, (train_index, test_index) in enumerate(skf.split(ids, pheno["STRAT"])):
-            
+        
             train_index, valid_index = train_test_split(train_index, test_size=0.33)
 
             fold = exp.require_group(str(i))
-            fold['train'] = [ind.encode('utf8') for ind in ids.iloc[train_index]]
-            fold['valid'] = [indv.encode('utf8') for indv in ids.iloc[valid_index]]
-            fold["test"] = [indt.encode('utf8') for indt in ids.iloc[test_index]]
+            
+            fold['train'] = [ind.encode('utf8') for ind in ids[train_index]] 
+            fold['valid'] = [indv.encode('utf8') for indv in ids[valid_index]]
+            fold["test"] = [indt.encode('utf8') for indt in ids[test_index]]
+
+
+        # print(fold['train'].shape)
+        # for fa in fold.attrs:
+        #   print(fa)
+
+            # fold["train"] = ids[train_index].tolist()
+            # fold["valid"] = ids[valid_index].tolist()
+            # fold["test"] = ids[test_index].tolist()
 
 
 def load_patients_to_file(hdf5, pheno, derivatives):
+
     download_root = "./data/functionals"
     derivatives_path = {
         "aal": "cpac/filt_global/rois_aal/{subject}_rois_aal.1D",
@@ -109,13 +144,25 @@ def load_patients_to_file(hdf5, pheno, derivatives):
         "ho": "cpac/filt_global/rois_ho/{subject}_rois_ho.1D",
         "tt": "cpac/filt_global/rois_tt/{subject}_rois_tt.1D",
     }
+    #print('storing_patients')
     storage = hdf5.require_group("patients")
+
+    #temp=[x for x in pheno["FILE_ID"].values if x.contains('NYU')==True]
+    #print(pheno[pheno["FILE_ID"].str.contains('NYU')]["FILE_ID"])
+
+    #file_ids = pheno[pheno["FILE_ID"].str.contains('NYU')]["FILE_ID"].tolist()
+    #print('storing_finished')
     file_ids = pheno["FILE_ID"].tolist()
 
     for derivative in derivatives:
+
+        #print('derivative_loop')
         file_template = os.path.join(download_root, derivatives_path[derivative])
         print(file_template)
+        # print('one_over')
         func_data = load_patients(file_ids, tmpl=file_template)
+        #print('two_over')
+
 
         for pid in func_data:
             print('func_data_filling')
@@ -125,20 +172,14 @@ def load_patients_to_file(hdf5, pheno, derivatives):
             patient_storage.attrs["y"] = record["DX_GROUP"]
             patient_storage.attrs["site"] = record["SITE_ID"]
             patient_storage.attrs["sex"] = record["SEX"]
-            patient_storage.attrs["age"] = record["AGE"]
-            patient_storage.attrs["fiq"] = record["FIQ"]
-            patient_storage.attrs["viq"] = record["VIQ"]
-            patient_storage.attrs["piq"] = record["PIQ"]
-            #patient_storage.attrs["handedness"] = record["HANDEDNESS_SCORES"]
-
-
-            # Check if dataset for the derivative already exists
-            if derivative in patient_storage:
-                print(f"Dataset {derivative} already exists for patient {pid}, skipping creation.")
-            else:
-                # Create the dataset only if it does not exist
-                patient_storage.create_dataset(derivative, data=func_data[pid])
-
+            # path=os.path.join("/content/drive/MyDrive/dataset_nx200",str(record["DX_GROUP"]))
+            # # if not os.path.exists(path):
+            # #  os.mkdir(path)
+            # print(func_data[pid])
+            # np.save(path+"/"+record["FILE_ID"]+".npy",func_data[pid])
+            # #cv2.imwrite(path+"/"+record["FILE_ID"]+".jpeg",func_data[pid])
+            patient_storage.create_dataset(derivative, data=func_data[pid])
+  
 
 if __name__ == "__main__":
 
@@ -148,7 +189,6 @@ if __name__ == "__main__":
     arguments = docopt(__doc__)
 
     folds = int(arguments["--folds"])
-
     pheno_path = "./data/phenotypes/Phenotypic_V1_0b_preprocessed1.csv"
     pheno = load_phenotypes(pheno_path)
 
